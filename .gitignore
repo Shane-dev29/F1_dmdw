@@ -1,0 +1,17 @@
+# Ignore cache and temporary files
+cache/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+
+# Ignore large database and archives
+*.db
+*.zip
+archive_extracted/
+
+# Ignore scratch files
+F1_source.txt
+tab3.txt
+app_recovered.py
+notebook_code.py
+generated_tracks.js

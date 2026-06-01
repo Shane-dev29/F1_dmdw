@@ -206,7 +206,7 @@ def panel_end():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ── TABS FOR ORGANIZATION ────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs(["🔮 Real-Time Predictor", "📊 Historical Insights", "🎮 2025 Career Sim", "🏁 Historical Race Replay"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔮 Real-Time Predictor", "📊 Historical Insights", "🎮 2025 Career Sim", "🏁 Historical Race Replay", "🗄️ SQL Query Explorer"])
 
 with tab1:
     # ── INPUTS ───────────────────────────────────────────────────────────────────
@@ -2033,3 +2033,54 @@ __TRACK_DATA__
     html_replay = html_replay.replace("__DRIVERS_JSON__", drivers_json_str)
 
     components.html(html_replay, height=750, scrolling=False)
+
+with tab5:
+    st.markdown("## 🗄️ Visual SQL Query Builder")
+    st.markdown("Construct your SQL query to run directly against the loaded F1 DataFrames!")
+
+    import sqlite3
+    conn = sqlite3.connect(':memory:')
+    
+    if 'races' in globals() and races is not None: races.to_sql('races', conn, index=False, if_exists='replace')
+    if 'pit_stops' in globals() and pit_stops is not None: pit_stops.to_sql('pit_stops', conn, index=False, if_exists='replace')
+    if 'drivers' in globals() and drivers is not None: drivers.to_sql('drivers', conn, index=False, if_exists='replace')
+    if 'results' in globals() and results is not None: results.to_sql('results', conn, index=False, if_exists='replace')
+    if 'constructors' in globals() and constructors is not None: constructors.to_sql('constructors', conn, index=False, if_exists='replace')
+    if 'circuits' in globals() and circuits is not None: circuits.to_sql('circuits', conn, index=False, if_exists='replace')
+    if 'status' in globals() and status is not None: status.to_sql('status', conn, index=False, if_exists='replace')
+
+    tables_query = pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", conn)
+    available_tables = tables_query['name'].tolist() if not tables_query.empty else []
+
+    if available_tables:
+        c1, c2, c3, c4, c5 = st.columns([1, 2, 1, 2, 3])
+        
+        with c1:
+            st.markdown("<div style='text-align:center; font-weight:bold; font-size:20px; margin-top:28px; color:#e10600;'>SELECT</div>", unsafe_allow_html=True)
+            
+        with c4:
+            selected_table = st.selectbox("From Table", available_tables, key="sql_table")
+            
+        with c2:
+            columns_query = pd.read_sql(f"PRAGMA table_info({selected_table});", conn)
+            available_cols = ["*"] + columns_query['name'].tolist()
+            selected_cols = st.selectbox("Columns", available_cols, key="sql_cols")
+            
+        with c3:
+            st.markdown("<div style='text-align:center; font-weight:bold; font-size:20px; margin-top:28px; color:#e10600;'>FROM</div>", unsafe_allow_html=True)
+            
+        with c5:
+            where_clause = st.text_input("Optional: WHERE / LIMIT clause", placeholder="e.g. WHERE year > 2020 LIMIT 10", key="sql_where")
+            
+        constructed_sql = f"SELECT {selected_cols} FROM {selected_table} {where_clause}".strip()
+        st.markdown(f"**Generated Query:** `{constructed_sql}`")
+        
+        if st.button("🚀 Execute Query", use_container_width=True):
+            try:
+                result_df = pd.read_sql(constructed_sql, conn)
+                st.success(f"Query executed successfully! {len(result_df)} rows returned.")
+                st.dataframe(result_df, use_container_width=True, height=400)
+            except Exception as e:
+                st.error(f"Error in query: {e}")
+    else:
+        st.warning("No data tables available to query.")
